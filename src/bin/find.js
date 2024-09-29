@@ -10,7 +10,8 @@ const options = {
   n: [],
   error: ['error'],
   core: ['core'],
-  verbose: ['verbose', 'v']
+  verbose: ['verbose', 'v'],
+  flatConfig: ["flatConfig"]
 };
 const optionsThatError = ['getUnusedRules', 'getDeprecatedRules'];
 

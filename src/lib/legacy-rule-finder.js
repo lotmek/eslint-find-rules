@@ -1,10 +1,16 @@
 const path = require('path');
 
-const { ESLint, Linter } = require('eslint');
+const { ESLint, loadESLint, Linter } = require('eslint');
 const glob = require('glob');
 const difference = require('./array-diff');
 const getSortedRules = require('./sort-rules');
 const normalizePluginName = require('./normalize-plugin-name');
+
+async function _loadEslint(options) {
+  return loadESLint
+    ? new (await loadESLint({ useFlatConfig: false }))(options)
+    : new ESLint(options)
+}
 
 function _getConfigFile(specifiedFile) {
   if (specifiedFile) {
@@ -18,7 +24,7 @@ function _getConfigFile(specifiedFile) {
 }
 
 async function _getConfigs(overrideConfigFile, files) {
-  const esLint = new ESLint({
+  const esLint = await _loadEslint({
     // Ignore any config applicable depending on the location on the filesystem
     useEslintrc: false,
     // Point to the particular config
@@ -71,7 +77,7 @@ function _getPluginRules(config) {
 }
 
 function _getCoreRules() {
-  return new Linter().getRules();
+  return new Linter({ configType: "eslintrc" }).getRules();
 }
 
 function _filterRuleNames(ruleNames, rules, predicate) {
@@ -146,5 +152,5 @@ async function createRuleFinder(specifiedFile, options) {
 }
 
 module.exports = async function (specifiedFile, options = {}) {
-  return createRuleFinder(specifiedFile, options);
+  return await(createRuleFinder(specifiedFile, options));
 };

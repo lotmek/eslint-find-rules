@@ -62,7 +62,6 @@ function _isNotCore(rule) {
 
 function RuleFinder(flatConfig, {omitCore, includeDeprecated}) {
   let currentRuleNames = _getCurrentNamesRules(flatConfig);
-  console.log("current", currentRuleNames)
   if (omitCore) {
     currentRuleNames = currentRuleNames.filter(_isNotCore);
   }
