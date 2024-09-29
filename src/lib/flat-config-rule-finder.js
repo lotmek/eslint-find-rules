@@ -1,8 +1,8 @@
 const path = require('path');
 
-const eslint= require('@eslint/js');
 const difference = require('./array-diff');
 const getSortedRules = require('./sort-rules');
+const { builtinRules } = require('eslint/use-at-your-own-risk');
 
 function _getConfigFile(specifiedFile) {
   if (specifiedFile) {
@@ -48,8 +48,8 @@ function _getPluginRules(flatConfig) {
   return pluginRules;
 }
 
-function _getCoreRuleNames() {
-  return Object.keys(eslint.configs.all.rules);
+function _getCoreRules() {
+  return builtinRules;
 }
 
 function _filterRuleNames(ruleNames, rules, predicate) {
@@ -67,20 +67,16 @@ function RuleFinder(flatConfig, {omitCore, includeDeprecated}) {
   }
 
   const pluginRules = _getPluginRules(flatConfig);
-  const coreRuleNames = _getCoreRuleNames();
+  const coreRules = _getCoreRules();
+  const allRules = omitCore ? pluginRules : new Map([...coreRules, ...pluginRules]);
 
-  // Ignore core rules if not imported in the flat config
-  const _omitCore = omitCore || !currentRuleNames.some(ruleName => coreRuleNames.includes(ruleName))
-
+  let allRuleNames = [...allRules.keys()];
   let pluginRuleNames = [...pluginRules.keys()];
-  let allRuleNames = _omitCore ? [...pluginRuleNames] : [...coreRuleNames, ...pluginRuleNames];
-  
   if (!includeDeprecated) {
-    allRuleNames = _filterRuleNames(allRuleNames, pluginRules, _notDeprecated);
+    allRuleNames = _filterRuleNames(allRuleNames, allRules, _notDeprecated);
     pluginRuleNames = _filterRuleNames(pluginRuleNames, pluginRules, _notDeprecated);
   }
-
-  const deprecatedRuleNames = _filterRuleNames(currentRuleNames, pluginRules, _isDeprecated);
+  const deprecatedRuleNames = _filterRuleNames(currentRuleNames, allRules, _isDeprecated);
   const dedupedRuleNames = [...new Set(allRuleNames)];
   const unusedRuleNames = difference(dedupedRuleNames, currentRuleNames);
 
