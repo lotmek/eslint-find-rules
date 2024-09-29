@@ -9,7 +9,7 @@
   },
   "scripts": {
     "cover": "nyc --reporter=lcov --reporter=text --reporter=html npm run tests-only",
-    "lint": "eslint --ext .js,.json .",
+    "lint": "eslint ./",
     "pretest": "npm run lint",
     "tests-only": "mocha --recursive",
     "test": "npm run tests-only",
@@ -43,6 +43,7 @@
     "yargs": "^16.2.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.11.1",
     "all-contributors-cli": "^4.11.2",
     "aud": "^2.0.4",
     "babel-cli": "^6.26.0",
@@ -52,8 +53,8 @@
     "commitizen": "^2.10.1",
     "create-require": "^1.1.1",
     "cz-conventional-changelog": "^2.1.0",
-    "eslint": "^7 || ^8.2.0",
-    "eslint-plugin-json": "^3.1.0",
+    "eslint": "^9",
+    "eslint-plugin-json": "^4.0.1",
     "ghooks": "^2.0.4",
     "in-publish": "^2.0.1",
     "mocha": "^3.5.3",
@@ -67,7 +68,7 @@
     "validate-commit-msg": "^2.14.0"
   },
   "peerDependencies": {
-    "eslint": "^7 || ^8.2.0"
+    "eslint": "^7 || ^8.2.0 || ^9"
   },
   "nyc": {
     "exclude": [
