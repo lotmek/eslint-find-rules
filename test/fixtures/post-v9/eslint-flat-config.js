@@ -1,16 +1,16 @@
-// const plugin = require("eslint-plugin-plugin")
+const plugin = require("eslint-plugin-plugin");
+const scopedPlugin = require("@scope/eslint-plugin-scoped-plugin");
 
 module.exports = [
   {
     plugins: {
-      plugin: {
-        rules: {
-          "foo-rule": {}
-        }
-      }
+      plugin,
+      "@scope/scoped-plugin": scopedPlugin,
     },
     rules: {
-      "plugin/foo-rule": [2],
-    }
-  }
-]
+      "foo-rule": [2],
+      "bar-rule": [2],
+      "@scope/scoped-plugin/foo-rule": [2],
+    },
+  },
+];

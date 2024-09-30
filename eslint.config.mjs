@@ -1,3 +1,4 @@
+// @ts-check
 import globals from "globals";
 import json from "eslint-plugin-json";
 import js from "@eslint/js";
@@ -5,10 +6,10 @@ import js from "@eslint/js";
 export default [
   js.configs.recommended,
   {
-    ignores: ["node_modules/", "coverage/", ".nyc_output/", "test/"],
+    ignores: ["node_modules", "coverage", ".nyc_output", "test", "dist"],
   },
   {
-    files: ["**/*.js"],
+    files: ["**/*.js", "**/*.cjs", "**/*.mjs"],
     languageOptions: {
       ecmaVersion: 2018,
       globals: {
