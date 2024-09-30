@@ -29,7 +29,7 @@ const mockCreateRequire = (getExport, plugins, relative) => {
   });
 };
 
-const getRuleFinder = proxyquire('../../src/lib/rule-finder', {
+const getRuleFinder = proxyquire('../../src/lib/legacy-rule-finder', {
   eslint: {
     Linter: class {
       getRules() {
@@ -109,7 +109,7 @@ const getRuleFinder = proxyquire('../../src/lib/rule-finder', {
   }
 });
 
-const getRuleFinderForDedupeTests = proxyquire('../../src/lib/rule-finder', {
+const getRuleFinderForDedupeTests = proxyquire('../../src/lib/legacy-rule-finder', {
   eslint: {
     Linter: class {
       getRules() {
@@ -149,7 +149,7 @@ const noDuplicateRulesFiles = `./test/fixtures/${eslintVersion}/eslint-dedupe-pl
 const usingDeprecatedRulesFile = path.join(process.cwd(), `./test/fixtures/${eslintVersion}/eslint-with-deprecated-rules.json`);
 const usingWithOverridesFile = path.join(process.cwd(), `./test/fixtures/${eslintVersion}/eslint-with-overrides.json`);
 
-describe('rule-finder', function() {
+describe('legacy-rule-finder', function() {
   // increase timeout because proxyquire adds a significant delay
   this.timeout(semver.satisfies(process.version, '> 10') ? 5e3 : (semver.satisfies(process.version, '> 4') ? 20e3 : 30e3));
 
