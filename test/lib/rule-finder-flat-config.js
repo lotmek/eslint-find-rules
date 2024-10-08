@@ -1,36 +1,73 @@
 const path = require('path');
-const createRequire = require('create-require');
 const assert = require('assert');
 const proxyquire = require('proxyquire');
+const mockRequire = require('mock-require');
 
 const semver = require('semver');
+const eslintPkg = require('eslint/package.json');
 
 const processCwd = process.cwd;
-
-const mockCreateRequire = (getExport, plugins, relative) => {
-  // Use the mocked require.
-  const moduleRequire = (id) => {
-    const targetExport = getExport();
-    return module.children
-      .find((m) => m.exports === targetExport)
-      .require(id);
-  };
-  return Object.assign(moduleRequire, {
-    // The strategy is simple: if called with one of our plugins, just return
-    // the module name, as-is. This is a lie because what we return is not a
-    // path, but it is simple, and works. Otherwise, we just call the original
-    // `resolve` from the stock module.
-    resolve: (name) => (
-      plugins.includes(name) ? name : createRequire(relative).resolve(name)
-    )
-  });
-};
 
 const mockedBuiltinRules = new Map()
   .set('foo-rule', {})
   .set('old-rule', { meta: { deprecated: true } })
   .set('bar-rule', {})
   .set('baz-rule', {})
+
+
+const mockedPlugins = {
+  'eslint-plugin-plugin': {
+    rules: {
+      'foo-rule': {},
+      'bar-rule': {},
+      'old-plugin-rule': {meta: {deprecated: true}},
+      'baz-rule': {}
+    }
+  },
+  'eslint-plugin-no-rules': {
+    processors: {},
+  },
+  'eslint-plugin-duplicate-plugin': {
+    rules: {
+      'duplicate-foo-rule': {},
+      'duplicate-bar-rule': {}
+    },
+  },
+  '@scope/eslint-plugin-scoped-plugin': {
+    rules: {
+      'foo-rule': {},
+      'old-plugin-rule': {meta: {deprecated: true}},
+      'bar-rule': {}
+    },
+  },
+  '@scope/eslint-plugin': {
+    rules: {
+      'foo-rule': {},
+      'old-plugin-rule': {meta: {deprecated: true}},
+      'bar-rule': {}
+    },
+  },
+  '@scope-with-dash/eslint-plugin-scoped-with-dash-plugin': {
+    rules: {
+      'foo-rule': {},
+      'old-plugin-rule': {meta: {deprecated: true}},
+      'bar-rule': {}
+    },
+  },
+  '@scope-with-dash/eslint-plugin': {
+    rules: {
+      'foo-rule': {},
+      'old-plugin-rule': {meta: {deprecated: true}},
+      'bar-rule': {}
+    },
+  }
+}
+
+function mockPluginImports(mockedPlugins) {
+  Object.entries(mockedPlugins).forEach(([pluginName, plugin]) => {
+    mockRequire(pluginName, plugin);
+  })
+}
 
 const getRuleFinder = proxyquire('../../src/lib/rule-finder', {
   eslint: {
@@ -49,73 +86,8 @@ const getRuleFinder = proxyquire('../../src/lib/rule-finder', {
     },
     '@global': true
   },
-  module: {
-    createRequire: (relative) => mockCreateRequire(
-      () => getRuleFinder,
-      [
-        'eslint-plugin-plugin',
-        'eslint-plugin-no-rules',
-        '@scope/eslint-plugin-scoped-plugin',
-        '@scope/eslint-plugin',
-        '@scope-with-dash/eslint-plugin-scoped-with-dash-plugin',
-        '@scope-with-dash/eslint-plugin'
-      ],
-      relative
-    ),
-    '@global': true
-  },
-  'eslint-plugin-plugin': {
-    rules: {
-      'foo-rule': {},
-      'bar-rule': {},
-      'old-plugin-rule': {meta: {deprecated: true}},
-      'baz-rule': {}
-    },
-    '@noCallThru': true,
-    '@global': true
-  },
-  'eslint-plugin-no-rules': {
-    processors: {},
-    '@noCallThru': true,
-    '@global': true
-  },
-  '@scope/eslint-plugin-scoped-plugin': {
-    rules: {
-      'foo-rule': {},
-      'old-plugin-rule': {meta: {deprecated: true}},
-      'bar-rule': {}
-    },
-    '@noCallThru': true,
-    '@global': true
-  },
-  '@scope/eslint-plugin': {
-    rules: {
-      'foo-rule': {},
-      'old-plugin-rule': {meta: {deprecated: true}},
-      'bar-rule': {}
-    },
-    '@noCallThru': true,
-    '@global': true
-  },
-  '@scope-with-dash/eslint-plugin-scoped-with-dash-plugin': {
-    rules: {
-      'foo-rule': {},
-      'old-plugin-rule': {meta: {deprecated: true}},
-      'bar-rule': {}
-    },
-    '@noCallThru': true,
-    '@global': true
-  },
-  '@scope-with-dash/eslint-plugin': {
-    rules: {
-      'foo-rule': {},
-      'old-plugin-rule': {meta: {deprecated: true}},
-      'bar-rule': {}
-    },
-    '@noCallThru': true,
-    '@global': true
-  }
-});
+  })
+;
 
 const mockedDedupedBuiltinRules = new Map()
   .set('foo-rule', {})
@@ -140,37 +112,37 @@ const getRuleFinderForDedupeTests = proxyquire('../../src/lib/rule-finder', {
     },
     '@global': true
   },
-  module: {
-    createRequire: (relative) => mockCreateRequire(
-      () => getRuleFinderForDedupeTests,
-      [
-        'eslint-plugin-plugin'
-      ],
-      relative
-    ),
-    '@global': true
-  },
-  'eslint-plugin-plugin': {
-    rules: {
-      'duplicate-foo-rule': {},
-      'duplicate-bar-rule': {}
+});
+
+const getRuleFinderNoFlatSupport = proxyquire('../../src/lib/rule-finder', {
+  eslint: {
+    Linter: class {
+      getRules() {
+        return mockedBuiltinRules
+      }
     },
-    '@noCallThru': true,
-    '@global': true
+  },
+  'eslint/use-at-your-own-risk': {
+    FlatESLint: undefined
   }
 });
 
-const noSpecifiedFile = path.resolve(process.cwd(), `./test/fixtures/prior-v8/no-path`);
-const specifiedFileRelative = `./test/fixtures/prior-v8/eslint.json`;
+const noSpecifiedFile = path.resolve(process.cwd(), `./test/fixtures/post-v8/no-path`);
+const specifiedFileRelative = `./test/fixtures/post-v8/eslint-flat-config.js`;
 const specifiedFileAbsolute = path.join(process.cwd(), specifiedFileRelative);
-const noRulesFile = path.join(process.cwd(), `./test/fixtures/prior-v8/eslint-with-plugin-with-no-rules.json`);
-const noDuplicateRulesFiles = `./test/fixtures/prior-v8/eslint-dedupe-plugin-rules.json`;
-const usingDeprecatedRulesFile = path.join(process.cwd(), `./test/fixtures/prior-v8/eslint-with-deprecated-rules.json`);
-const usingWithOverridesFile = path.join(process.cwd(), `./test/fixtures/prior-v8/eslint-with-overrides.json`);
+const noRulesFile = path.join(process.cwd(), `./test/fixtures/post-v8/eslint-flat-config-with-plugin-with-no-rules.js`);
+const noDuplicateRulesFiles = `./test/fixtures/post-v8/eslint-flat-config-dedupe-plugin-rules.js`;
+const usingDeprecatedRulesFile = path.join(process.cwd(), `./test/fixtures/post-v8/eslint-flat-config-with-deprecated-rules.js`);
+const usingWithOverridesFile = path.join(process.cwd(), `./test/fixtures/post-v8/eslint-flat-config-with-overrides.js`);
 
-describe('rule-finder (legacy)', function() {
+(semver.satisfies(eslintPkg.version, '>= 8') ? describe : describe.skip)('rule-finder (flat config)', function() {
   // increase timeout because proxyquire adds a significant delay
-  this.timeout(semver.satisfies(process.version, '> 10') ? 5e3 : (semver.satisfies(process.version, '> 4') ? 20e3 : 30e3));
+  this.timeout(5e3);
+
+  // Inject all the mocked plugins importations
+  before(() => {
+    mockPluginImports(mockedPlugins);
+  });
 
   afterEach(() => {
     process.cwd = processCwd;
@@ -180,7 +152,7 @@ describe('rule-finder (legacy)', function() {
     process.cwd = function () {
       return noSpecifiedFile;
     };
-    const ruleFinder = await getRuleFinder();
+    const ruleFinder = await getRuleFinder(null, {useFlatConfig: true});
     assert.deepEqual(ruleFinder.getUnusedRules(), ['bar-rule', 'baz-rule']);
   });
 
@@ -188,7 +160,7 @@ describe('rule-finder (legacy)', function() {
     process.cwd = function () {
       return noSpecifiedFile;
     };
-    const ruleFinder = await getRuleFinder(null, {includeDeprecated: true});
+    const ruleFinder = await getRuleFinder(null, {useFlatConfig: true, includeDeprecated: true});
     assert.deepEqual(ruleFinder.getUnusedRules(), ['bar-rule', 'baz-rule', 'old-rule']);
   });
 
@@ -196,7 +168,7 @@ describe('rule-finder (legacy)', function() {
     process.cwd = function () {
       return noSpecifiedFile;
     };
-    const ruleFinder = await getRuleFinder();
+    const ruleFinder = await getRuleFinder(null, {useFlatConfig: true});
     assert.deepEqual(ruleFinder.getCurrentRules(), ['foo-rule']);
   });
 
@@ -204,7 +176,7 @@ describe('rule-finder (legacy)', function() {
     process.cwd = function () {
       return noSpecifiedFile;
     };
-    const ruleFinder = await getRuleFinder();
+    const ruleFinder = await getRuleFinder(null, {useFlatConfig: true});
     assert.deepEqual(ruleFinder.getCurrentRulesDetailed(), {'foo-rule': [2]});
   });
 
@@ -212,7 +184,7 @@ describe('rule-finder (legacy)', function() {
     process.cwd = function () {
       return noSpecifiedFile;
     };
-    const ruleFinder = await getRuleFinder();
+    const ruleFinder = await getRuleFinder(null, {useFlatConfig: true});
     assert.deepEqual(ruleFinder.getPluginRules(), []);
   });
 
@@ -220,7 +192,7 @@ describe('rule-finder (legacy)', function() {
     process.cwd = function () {
       return noSpecifiedFile;
     };
-    const ruleFinder = await getRuleFinder();
+    const ruleFinder = await getRuleFinder(null, {useFlatConfig: true});
     assert.deepEqual(ruleFinder.getAllAvailableRules(), ['bar-rule', 'baz-rule', 'foo-rule']);
   });
 
@@ -228,7 +200,7 @@ describe('rule-finder (legacy)', function() {
     process.cwd = function () {
       return noSpecifiedFile;
     };
-    const ruleFinder = await getRuleFinder(null, {omitCore: true});
+    const ruleFinder = await getRuleFinder(null, {useFlatConfig: true, omitCore: true});
     assert.deepEqual(ruleFinder.getAllAvailableRules(), []);
   });
 
@@ -236,12 +208,12 @@ describe('rule-finder (legacy)', function() {
     process.cwd = function () {
       return noSpecifiedFile;
     };
-    const ruleFinder = await getRuleFinder(null, {includeDeprecated: true});
+    const ruleFinder = await getRuleFinder(null, {useFlatConfig: true, includeDeprecated: true});
     assert.deepEqual(ruleFinder.getAllAvailableRules(), ['bar-rule', 'baz-rule', 'foo-rule', 'old-rule']);
   });
 
   it('specifiedFile (relative path) - unused rules', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileRelative);
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, {useFlatConfig: true});
     assert.deepEqual(ruleFinder.getUnusedRules(), [
       '@scope-with-dash/bar-rule',
       '@scope-with-dash/scoped-with-dash-plugin/bar-rule',
@@ -255,7 +227,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (relative path) - unused rules including deprecated', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileRelative, {includeDeprecated: true});
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, {useFlatConfig: true, includeDeprecated: true});
     assert.deepEqual(ruleFinder.getUnusedRules(), [
       '@scope-with-dash/bar-rule',
       '@scope-with-dash/old-plugin-rule',
@@ -275,7 +247,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (relative path) - current rules', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileRelative);
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, {useFlatConfig: true});
     assert.deepEqual(ruleFinder.getCurrentRules(), [
       '@scope-with-dash/foo-rule',
       '@scope-with-dash/scoped-with-dash-plugin/foo-rule',
@@ -287,7 +259,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (relative path) - current rules with ext', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileRelative, { ext: ['.json'] });
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, { useFlatConfig: true, ext: ['.json'] });
     assert.deepEqual(ruleFinder.getCurrentRules(), [
       '@scope-with-dash/foo-rule',
       '@scope-with-dash/scoped-with-dash-plugin/foo-rule',
@@ -299,7 +271,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (relative path) - current rules with ext without dot', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileRelative, { ext: ['json'] });
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, {useFlatConfig: true, ext: ['json'] });
     assert.deepEqual(ruleFinder.getCurrentRules(), [
       '@scope-with-dash/foo-rule',
       '@scope-with-dash/scoped-with-dash-plugin/foo-rule',
@@ -311,12 +283,12 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (relative path) - current rules with ext not found', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileRelative, { ext: ['.ts'] });
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, {useFlatConfig: true, ext: ['.ts'] });
     assert.deepEqual(ruleFinder.getCurrentRules(), []);
   });
 
   it('specifiedFile (relative path) - current rule config', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileRelative);
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, {useFlatConfig: true});
     assert.deepEqual(ruleFinder.getCurrentRulesDetailed(), {
       '@scope-with-dash/foo-rule': [2],
       '@scope-with-dash/scoped-with-dash-plugin/foo-rule': [2],
@@ -328,7 +300,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (relative path) - plugin rules', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileRelative);
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, {useFlatConfig: true});
     assert.deepEqual(ruleFinder.getPluginRules(), [
       '@scope-with-dash/bar-rule',
       '@scope-with-dash/foo-rule',
@@ -345,7 +317,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (relative path) - plugin rules including deprecated', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileRelative, {includeDeprecated: true});
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, {useFlatConfig: true, includeDeprecated: true});
     assert.deepEqual(ruleFinder.getPluginRules(), [
       '@scope-with-dash/bar-rule',
       '@scope-with-dash/foo-rule',
@@ -367,7 +339,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (relative path) - all available rules', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileRelative);
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, {useFlatConfig: true});
     assert.deepEqual(
       ruleFinder.getAllAvailableRules(),
       [
@@ -390,7 +362,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (relative path) - all available rules without core', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileRelative, {omitCore: true});
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, {useFlatConfig: true, omitCore: true});
     assert.deepEqual(
       ruleFinder.getAllAvailableRules(),
       [
@@ -410,7 +382,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (relative path) - all available rules including deprecated', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileRelative, {includeDeprecated: true});
+    const ruleFinder = await getRuleFinder(specifiedFileRelative, {useFlatConfig: true, includeDeprecated: true});
     assert.deepEqual(
       ruleFinder.getAllAvailableRules(),
       [
@@ -439,7 +411,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (absolute path) - unused rules', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileAbsolute);
+    const ruleFinder = await getRuleFinder(specifiedFileAbsolute, {useFlatConfig: true});
     assert.deepEqual(ruleFinder.getUnusedRules(), [
       '@scope-with-dash/bar-rule',
       '@scope-with-dash/scoped-with-dash-plugin/bar-rule',
@@ -453,7 +425,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (absolute path) - unused rules', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileAbsolute, {includeDeprecated: true});
+    const ruleFinder = await getRuleFinder(specifiedFileAbsolute, {useFlatConfig: true, includeDeprecated: true});
     assert.deepEqual(ruleFinder.getUnusedRules(), [
       '@scope-with-dash/bar-rule',
       '@scope-with-dash/old-plugin-rule',
@@ -473,7 +445,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (absolute path) - current rules', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileAbsolute);
+    const ruleFinder = await getRuleFinder(specifiedFileAbsolute, {useFlatConfig: true});
     assert.deepEqual(ruleFinder.getCurrentRules(), [
       '@scope-with-dash/foo-rule',
       '@scope-with-dash/scoped-with-dash-plugin/foo-rule',
@@ -485,7 +457,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (absolute path) - current rule config', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileAbsolute);
+    const ruleFinder = await getRuleFinder(specifiedFileAbsolute, {useFlatConfig: true});
     assert.deepEqual(ruleFinder.getCurrentRulesDetailed(), {
       '@scope-with-dash/foo-rule': [2],
       '@scope-with-dash/scoped-with-dash-plugin/foo-rule': [2],
@@ -497,7 +469,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (absolute path) - plugin rules', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileAbsolute);
+    const ruleFinder = await getRuleFinder(specifiedFileAbsolute, {useFlatConfig: true});
     assert.deepEqual(ruleFinder.getPluginRules(), [
       '@scope-with-dash/bar-rule',
       '@scope-with-dash/foo-rule',
@@ -514,7 +486,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (absolute path) - plugin rules including deprecated', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileAbsolute, {includeDeprecated: true});
+    const ruleFinder = await getRuleFinder(specifiedFileAbsolute, {useFlatConfig: true, includeDeprecated: true});
     assert.deepEqual(ruleFinder.getPluginRules(), [
       '@scope-with-dash/bar-rule',
       '@scope-with-dash/foo-rule',
@@ -536,7 +508,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (absolute path) - all available rules', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileAbsolute);
+    const ruleFinder = await getRuleFinder(specifiedFileAbsolute, {useFlatConfig: true});
     assert.deepEqual(
       ruleFinder.getAllAvailableRules(),
       [
@@ -559,7 +531,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (absolute path) - all available rules including deprecated', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileAbsolute, {includeDeprecated: true});
+    const ruleFinder = await getRuleFinder(specifiedFileAbsolute, {useFlatConfig: true, includeDeprecated: true});
     assert.deepEqual(
       ruleFinder.getAllAvailableRules(),
       [
@@ -588,7 +560,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (absolute path) without rules - plugin rules', async () => {
-    const ruleFinder = await getRuleFinder(noRulesFile);
+    const ruleFinder = await getRuleFinder(noRulesFile, {useFlatConfig: true});
     assert.deepEqual(ruleFinder.getPluginRules(), [
       'plugin/bar-rule',
       'plugin/baz-rule',
@@ -597,7 +569,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('dedupes plugin rules - all available rules', async () => {
-    const ruleFinder = await getRuleFinderForDedupeTests(noDuplicateRulesFiles);
+    const ruleFinder = await getRuleFinderForDedupeTests(noDuplicateRulesFiles, {useFlatConfig: true});
     assert.deepEqual(ruleFinder.getAllAvailableRules(), [
       'bar-rule',
       'foo-rule',
@@ -607,7 +579,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('dedupes plugin rules - unused rules', async () => {
-    const ruleFinder = await getRuleFinderForDedupeTests(noDuplicateRulesFiles);
+    const ruleFinder = await getRuleFinderForDedupeTests(noDuplicateRulesFiles, {useFlatConfig: true});
     assert.deepEqual(ruleFinder.getUnusedRules(), [
       'bar-rule',
       'plugin/duplicate-foo-rule'
@@ -615,12 +587,12 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('specifiedFile (absolute path) without deprecated rules - deprecated rules', async () => {
-    const ruleFinder = await getRuleFinder(specifiedFileAbsolute);
+    const ruleFinder = await getRuleFinder(specifiedFileAbsolute, {useFlatConfig: true});
     assert.deepEqual(ruleFinder.getDeprecatedRules(), []);
   });
 
   it('specifiedFile (absolute path) with deprecated rules - deprecated rules', async () => {
-    const ruleFinder = await getRuleFinder(usingDeprecatedRulesFile);
+    const ruleFinder = await getRuleFinder(usingDeprecatedRulesFile, {useFlatConfig: true});
     assert.deepEqual(ruleFinder.getDeprecatedRules(), [
       '@scope-with-dash/old-plugin-rule',
       '@scope-with-dash/scoped-with-dash-plugin/old-plugin-rule',
@@ -632,7 +604,7 @@ describe('rule-finder (legacy)', function() {
   });
 
   it('check overrides - unused rules', async () => {
-    const ruleFinder = await getRuleFinder(usingWithOverridesFile, {'ext': ['.txt', '.json']});
+    const ruleFinder = await getRuleFinder(usingWithOverridesFile, {useFlatConfig: true, 'ext': ['.txt', '.json']});
     assert.deepEqual(ruleFinder.getUnusedRules(), [
       "@scope-with-dash/bar-rule",
       "@scope-with-dash/foo-rule",
@@ -646,5 +618,14 @@ describe('rule-finder (legacy)', function() {
       "plugin/baz-rule",
       "plugin/foo-rule",
     ]);
+  });
+
+  it('flat config - should throw an exception if FlatESLint is not defined', async () => {
+    try {
+      await getRuleFinderNoFlatSupport(specifiedFileRelative, {useFlatConfig: true})
+      assert.fail('Expected an error to be thrown');
+    } catch (error) {
+      assert.strictEqual(error, 'This version of ESLint does not support flat config.')
+    }
   });
 });

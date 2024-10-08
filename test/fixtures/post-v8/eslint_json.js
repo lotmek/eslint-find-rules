@@ -22,6 +22,5 @@ module.exports = [
       '@scope-with-dash/scoped-with-dash-plugin/foo-rule': [2],
       '@scope-with-dash/foo-rule': [2]
     }
-  },
-  { files: ['*.json'] }
+  }
 ];
