@@ -27,7 +27,9 @@ jobs:
         eslint:
           - 9
           - 8
-          - 9
+        include:
+          - node-version: 14
+            eslint: 7.7
         exclude:
           - node-version: 15
             eslint: 8
